@@ -11,8 +11,10 @@ option(RISCY_WARNINGS "Enable extra compiler warnings" ON)
 
 add_library(riscy_lib
   src/ELFImage.cpp
+  src/IR/IR.cpp
   src/RISCV/CFG.cpp
   src/RISCV/Decoder.cpp
+  src/RISCV/Lifter.cpp
   src/RISCV/Printer.cpp
 )
 
@@ -97,6 +99,21 @@ if (BUILD_TESTING)
   endif()
   # Run Catch2 with -s to show std::cout prints from tests
   add_test(NAME cfg_tests COMMAND cfg_tests -s)
+
+  # IR tests
+  add_executable(ir_tests tests/IRTests.cpp)
+  target_link_libraries(ir_tests PRIVATE riscy_lib Catch2::Catch2WithMain)
+  target_include_directories(ir_tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+  )
+  if (RISCY_WARNINGS)
+    if (MSVC)
+      target_compile_options(ir_tests PRIVATE /W4)
+    else()
+      target_compile_options(ir_tests PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
+  endif()
+  add_test(NAME ir_tests COMMAND ir_tests -s)
 
   find_package(Python3 COMPONENTS Interpreter REQUIRED)
   add_test(NAME e2e_decode

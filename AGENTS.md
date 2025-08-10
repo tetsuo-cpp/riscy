@@ -21,6 +21,7 @@
 - Language: C++17, no extensions.
 - Naming: Types/structs in PascalCase (e.g., `ELFImage`, `Decoder`); functions/methods in camelCase (`decodeNext`, `formatInst`); namespaces are lowercase (`riscy::riscv`).
 - Headers: Prefer `.h` for headers and `.cpp` for impl; keep public headers in `src/` and include via project-relative paths (`#include "RISCV/Decoder.h"`).
+- Namespaces: Avoid `using namespace` directives in source files. Always use fully qualified names (e.g., `ir::Type`, `riscy::riscv::Decoder`) to prevent namespace pollution and improve code clarity.
 
 ## Testing Guidelines
 - Frameworks: Catch2 for unit tests; e2e is executed via CTest which invokes pytest.

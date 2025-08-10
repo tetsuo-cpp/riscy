@@ -38,8 +38,12 @@ Build produces `build/riscy`:
   `./build/riscy --cfg path/to/input.elf`
   Prints basic blocks, instructions, terminators, and successors.
 
+- Lift to IR (with disassembly):
+  `./build/riscy --ir path/to/input.elf`
+  Prints decoded instructions alongside their SSA IR representation.
+
 ## Layout
-- `src/`: Core library (`ELFImage.*`, `MemoryReaders.h`, `RISCV/*` decoder/printer/CFG)
+- `src/`: Core library (`ELFImage.*`, `MemoryReaders.h`, `RISCV/*` decoder/printer/CFG/lifter, `IR/*`)
 - `tools/`: CLI entry (`riscy.cpp`)
 - `tests/`: Catch2 unit tests and `tests/e2e` (pytest + sample C programs)
 - `third_party/`: `ELFIO`, `Catch2` (git submodules)

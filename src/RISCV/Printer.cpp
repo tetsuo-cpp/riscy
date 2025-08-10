@@ -149,4 +149,47 @@ std::string formatInst(const DecodedInst &inst) {
   return os.str();
 }
 
+std::string formatBlock(const BasicBlock &bb) {
+  std::ostringstream os;
+  os << "block 0x" << std::hex << bb.start << std::dec << ":\n";
+  for (const auto &I : bb.insts) {
+    os << "  0x" << std::hex << I.pc << ": 0x" << I.raw << std::dec << "\t"
+       << formatInst(I) << "\n";
+  }
+  os << "  term: ";
+  switch (bb.term) {
+  case TermKind::None:
+    os << "none";
+    break;
+  case TermKind::Fallthrough:
+    os << "fallthrough";
+    break;
+  case TermKind::Branch:
+    os << "branch";
+    break;
+  case TermKind::Jump:
+    os << "jump";
+    break;
+  case TermKind::IndirectJump:
+    os << "indirect";
+    break;
+  case TermKind::Return:
+    os << "ret";
+    break;
+  case TermKind::Trap:
+    os << "trap";
+    break;
+  }
+  if (!bb.succs.empty()) {
+    os << "; succs: ";
+    for (size_t i = 0; i < bb.succs.size(); ++i) {
+      if (i)
+        os << ", ";
+      os << "0x" << std::hex << bb.succs[i] << std::dec;
+    }
+  }
+  os << "\n";
+  return os.str();
+}
+
 } // namespace riscy::riscv

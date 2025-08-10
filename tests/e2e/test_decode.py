@@ -82,7 +82,7 @@ def build_sample(clang: str, sample_c: Path, out_dir: Path) -> Path:
 
 
 def run_riscy(riscy_bin: Path, elf: Path) -> subprocess.CompletedProcess:
-    args = [str(riscy_bin), "--cfg", str(elf)]
+    args = [str(riscy_bin), "--ir", str(elf)]
     return subprocess.run(
         args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
     )
