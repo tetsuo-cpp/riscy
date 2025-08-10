@@ -86,6 +86,24 @@ const char *opcodeName(Opcode op) {
     return "OR";
   case Opcode::AND:
     return "AND";
+  case Opcode::ADDIW:
+    return "ADDIW";
+  case Opcode::SLLIW:
+    return "SLLIW";
+  case Opcode::SRLIW:
+    return "SRLIW";
+  case Opcode::SRAIW:
+    return "SRAIW";
+  case Opcode::ADDW:
+    return "ADDW";
+  case Opcode::SUBW:
+    return "SUBW";
+  case Opcode::SLLW:
+    return "SLLW";
+  case Opcode::SRLW:
+    return "SRLW";
+  case Opcode::SRAW:
+    return "SRAW";
   case Opcode::FENCE:
     return "FENCE";
   case Opcode::ECALL:

@@ -6,67 +6,7 @@
 #include "MemoryReaders.h"
 #include "RISCV/DecodedInst.h"
 #include "RISCV/Decoder.h"
-
-static void appendWordLE(std::vector<unsigned char> &buf, uint32_t w) {
-  buf.push_back(static_cast<unsigned char>(w & 0xFF));
-  buf.push_back(static_cast<unsigned char>((w >> 8) & 0xFF));
-  buf.push_back(static_cast<unsigned char>((w >> 16) & 0xFF));
-  buf.push_back(static_cast<unsigned char>((w >> 24) & 0xFF));
-}
-
-// Encoders for a few instruction formats
-static uint32_t encodeU(uint32_t imm20, uint8_t rd, uint8_t opcode) {
-  return (imm20 << 12) | (static_cast<uint32_t>(rd) << 7) | opcode;
-}
-
-static uint32_t encodeI(std::int32_t imm12, uint8_t rs1, uint8_t funct3,
-                        uint8_t rd, uint8_t opcode) {
-  uint32_t i = static_cast<uint32_t>(imm12 & 0xFFF);
-  return (i << 20) | (static_cast<uint32_t>(rs1) << 15) |
-         (static_cast<uint32_t>(funct3) << 12) |
-         (static_cast<uint32_t>(rd) << 7) | opcode;
-}
-
-static uint32_t encodeR(uint8_t funct7, uint8_t rs2, uint8_t rs1,
-                        uint8_t funct3, uint8_t rd, uint8_t opcode) {
-  return (static_cast<uint32_t>(funct7) << 25) |
-         (static_cast<uint32_t>(rs2) << 20) |
-         (static_cast<uint32_t>(rs1) << 15) |
-         (static_cast<uint32_t>(funct3) << 12) |
-         (static_cast<uint32_t>(rd) << 7) | opcode;
-}
-
-static uint32_t encodeS(std::int32_t imm12, uint8_t rs2, uint8_t rs1,
-                        uint8_t funct3, uint8_t opcode) {
-  uint32_t i = static_cast<uint32_t>(imm12 & 0xFFF);
-  uint32_t immHi = (i >> 5) & 0x7F;
-  uint32_t immLo = i & 0x1F;
-  return (immHi << 25) | (static_cast<uint32_t>(rs2) << 20) |
-         (static_cast<uint32_t>(rs1) << 15) |
-         (static_cast<uint32_t>(funct3) << 12) | (immLo << 7) | opcode;
-}
-
-static uint32_t encodeB(std::int32_t immBytes, uint8_t rs2, uint8_t rs1,
-                        uint8_t funct3, uint8_t opcode) {
-  uint32_t b = static_cast<uint32_t>(immBytes);
-  uint32_t bit12 = (b >> 12) & 0x1;
-  uint32_t bits10_5 = (b >> 5) & 0x3F;
-  uint32_t bits4_1 = (b >> 1) & 0xF;
-  uint32_t bit11 = (b >> 11) & 0x1;
-  return (bit12 << 31) | (bits10_5 << 25) | (static_cast<uint32_t>(rs2) << 20) |
-         (static_cast<uint32_t>(rs1) << 15) |
-         (static_cast<uint32_t>(funct3) << 12) | (bits4_1 << 8) | (bit11 << 7) |
-         opcode;
-}
-
-static uint32_t encodeShiftI(uint8_t funct7, uint8_t shamt, uint8_t rs1,
-                             uint8_t funct3, uint8_t rd, uint8_t opcode) {
-  return (static_cast<uint32_t>(funct7) << 25) |
-         (static_cast<uint32_t>(shamt) << 20) |
-         (static_cast<uint32_t>(rs1) << 15) |
-         (static_cast<uint32_t>(funct3) << 12) |
-         (static_cast<uint32_t>(rd) << 7) | opcode;
-}
+#include "TestUtils.h"
 
 TEST_CASE("RV64I basic decode", "[decoder]") {
   std::vector<unsigned char> code;
@@ -246,5 +186,123 @@ TEST_CASE("RV64I more decode", "[decoder]") {
     riscy::riscv::DecodeError E;
     REQUIRE(dec.decodeNext(mem, base + 32, I, E));
     CHECK(I.opcode == riscy::riscv::Opcode::EBREAK);
+  }
+}
+
+TEST_CASE("RV64I W-ops decode", "[decoder]") {
+  std::vector<unsigned char> code;
+
+  // ADDIW x5, x4, 16
+  appendWordLE(code, encodeI(16, 4, 0x0, 5, 0x1B));
+  // SLLIW x6, x5, 7
+  appendWordLE(code, encodeShiftI(0x00, 7, 5, 0x1, 6, 0x1B));
+  // SRLIW x7, x6, 3
+  appendWordLE(code, encodeShiftI(0x00, 3, 6, 0x5, 7, 0x1B));
+  // SRAIW x8, x7, 12
+  appendWordLE(code, encodeShiftI(0x20, 12, 7, 0x5, 8, 0x1B));
+  // ADDW x9, x7, x6
+  appendWordLE(code, encodeR(0x00, 6, 7, 0x0, 9, 0x3B));
+  // SUBW x10, x9, x5
+  appendWordLE(code, encodeR(0x20, 5, 9, 0x0, 10, 0x3B));
+  // SLLW x11, x10, x4
+  appendWordLE(code, encodeR(0x00, 4, 10, 0x1, 11, 0x3B));
+  // SRLW x12, x11, x3
+  appendWordLE(code, encodeR(0x00, 3, 11, 0x5, 12, 0x3B));
+  // SRAW x13, x12, x2
+  appendWordLE(code, encodeR(0x20, 2, 12, 0x5, 13, 0x3B));
+
+  uint64_t base = 0x3000;
+  riscy::SpanMemoryReader mem(base, code.data(), code.size());
+  riscy::riscv::Decoder dec;
+
+  {
+    riscy::riscv::DecodedInst I{};
+    riscy::riscv::DecodeError E;
+    REQUIRE(dec.decodeNext(mem, base, I, E));
+    CHECK(I.opcode == riscy::riscv::Opcode::ADDIW);
+    REQUIRE(I.operands.size() == 3);
+    CHECK(std::get<riscy::riscv::Reg>(I.operands[0]).index == 5);
+    CHECK(std::get<riscy::riscv::Reg>(I.operands[1]).index == 4);
+    CHECK(std::get<riscy::riscv::Imm>(I.operands[2]).value == 16);
+  }
+  {
+    riscy::riscv::DecodedInst I{};
+    riscy::riscv::DecodeError E;
+    REQUIRE(dec.decodeNext(mem, base + 4, I, E));
+    CHECK(I.opcode == riscy::riscv::Opcode::SLLIW);
+    REQUIRE(I.operands.size() == 3);
+    CHECK(std::get<riscy::riscv::Reg>(I.operands[0]).index == 6);
+    CHECK(std::get<riscy::riscv::Reg>(I.operands[1]).index == 5);
+    CHECK(std::get<riscy::riscv::Imm>(I.operands[2]).value == 7);
+  }
+  {
+    riscy::riscv::DecodedInst I{};
+    riscy::riscv::DecodeError E;
+    REQUIRE(dec.decodeNext(mem, base + 8, I, E));
+    CHECK(I.opcode == riscy::riscv::Opcode::SRLIW);
+    REQUIRE(I.operands.size() == 3);
+    CHECK(std::get<riscy::riscv::Reg>(I.operands[0]).index == 7);
+    CHECK(std::get<riscy::riscv::Reg>(I.operands[1]).index == 6);
+    CHECK(std::get<riscy::riscv::Imm>(I.operands[2]).value == 3);
+  }
+  {
+    riscy::riscv::DecodedInst I{};
+    riscy::riscv::DecodeError E;
+    REQUIRE(dec.decodeNext(mem, base + 12, I, E));
+    CHECK(I.opcode == riscy::riscv::Opcode::SRAIW);
+    REQUIRE(I.operands.size() == 3);
+    CHECK(std::get<riscy::riscv::Reg>(I.operands[0]).index == 8);
+    CHECK(std::get<riscy::riscv::Reg>(I.operands[1]).index == 7);
+    CHECK(std::get<riscy::riscv::Imm>(I.operands[2]).value == 12);
+  }
+  {
+    riscy::riscv::DecodedInst I{};
+    riscy::riscv::DecodeError E;
+    REQUIRE(dec.decodeNext(mem, base + 16, I, E));
+    CHECK(I.opcode == riscy::riscv::Opcode::ADDW);
+    REQUIRE(I.operands.size() == 3);
+    CHECK(std::get<riscy::riscv::Reg>(I.operands[0]).index == 9);
+    CHECK(std::get<riscy::riscv::Reg>(I.operands[1]).index == 7);
+    CHECK(std::get<riscy::riscv::Reg>(I.operands[2]).index == 6);
+  }
+  {
+    riscy::riscv::DecodedInst I{};
+    riscy::riscv::DecodeError E;
+    REQUIRE(dec.decodeNext(mem, base + 20, I, E));
+    CHECK(I.opcode == riscy::riscv::Opcode::SUBW);
+    REQUIRE(I.operands.size() == 3);
+    CHECK(std::get<riscy::riscv::Reg>(I.operands[0]).index == 10);
+    CHECK(std::get<riscy::riscv::Reg>(I.operands[1]).index == 9);
+    CHECK(std::get<riscy::riscv::Reg>(I.operands[2]).index == 5);
+  }
+  {
+    riscy::riscv::DecodedInst I{};
+    riscy::riscv::DecodeError E;
+    REQUIRE(dec.decodeNext(mem, base + 24, I, E));
+    CHECK(I.opcode == riscy::riscv::Opcode::SLLW);
+    REQUIRE(I.operands.size() == 3);
+    CHECK(std::get<riscy::riscv::Reg>(I.operands[0]).index == 11);
+    CHECK(std::get<riscy::riscv::Reg>(I.operands[1]).index == 10);
+    CHECK(std::get<riscy::riscv::Reg>(I.operands[2]).index == 4);
+  }
+  {
+    riscy::riscv::DecodedInst I{};
+    riscy::riscv::DecodeError E;
+    REQUIRE(dec.decodeNext(mem, base + 28, I, E));
+    CHECK(I.opcode == riscy::riscv::Opcode::SRLW);
+    REQUIRE(I.operands.size() == 3);
+    CHECK(std::get<riscy::riscv::Reg>(I.operands[0]).index == 12);
+    CHECK(std::get<riscy::riscv::Reg>(I.operands[1]).index == 11);
+    CHECK(std::get<riscy::riscv::Reg>(I.operands[2]).index == 3);
+  }
+  {
+    riscy::riscv::DecodedInst I{};
+    riscy::riscv::DecodeError E;
+    REQUIRE(dec.decodeNext(mem, base + 32, I, E));
+    CHECK(I.opcode == riscy::riscv::Opcode::SRAW);
+    REQUIRE(I.operands.size() == 3);
+    CHECK(std::get<riscy::riscv::Reg>(I.operands[0]).index == 13);
+    CHECK(std::get<riscy::riscv::Reg>(I.operands[1]).index == 12);
+    CHECK(std::get<riscy::riscv::Reg>(I.operands[2]).index == 2);
   }
 }

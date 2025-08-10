@@ -64,7 +64,7 @@ def build_sample(clang: str, sample_c: Path, out_dir: Path) -> Path:
         "-fno-builtin",
         "-fno-stack-protector",
         "-fno-asynchronous-unwind-tables",
-        "-O2",
+        "-O0",
         "-c",
     ]
     ldflags = [
@@ -82,7 +82,7 @@ def build_sample(clang: str, sample_c: Path, out_dir: Path) -> Path:
 
 
 def run_riscy(riscy_bin: Path, elf: Path) -> subprocess.CompletedProcess:
-    args = [str(riscy_bin), str(elf)]
+    args = [str(riscy_bin), "--cfg", str(elf)]
     return subprocess.run(
         args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
     )
@@ -124,11 +124,8 @@ def test_decode_samples(sample: str, request):
         # Always print decoded output (pytest -s in __main__ ensures visibility under CTest -V)
         print(f"=== riscy decode: {sample} ===")
         out_lines = [ln for ln in proc.stdout.splitlines() if ln.strip()]
-        preview = out_lines[: min(20, len(out_lines))]
-        for ln in preview:
+        for ln in out_lines:
             print(ln)
-        if len(out_lines) > len(preview):
-            print(f"... ({len(out_lines) - len(preview)} more lines)")
         assert proc.returncode == 0, f"riscy failed: {proc.stderr}"
         assert "<decode error>" not in proc.stdout, proc.stdout
         # Ensure at least a few lines decoded

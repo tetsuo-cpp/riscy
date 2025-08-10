@@ -29,11 +29,17 @@ Run only the e2e decode test:
 
 ## Usage
 Build produces `build/riscy`:
-`./build/riscy path/to/input.elf`
-It prints decoded instructions (address, raw word, formatted mnemonic/operands).
+
+- Decode linearly:
+  `./build/riscy path/to/input.elf`
+  Prints decoded instructions (address, raw word, formatted mnemonic/operands).
+
+- Dump CFG (reachable blocks from entry):
+  `./build/riscy --cfg path/to/input.elf`
+  Prints basic blocks, instructions, terminators, and successors.
 
 ## Layout
-- `src/`: Core library (`ELFImage.*`, `MemoryReaders.h`, `RISCV/*` decoder/printer)
+- `src/`: Core library (`ELFImage.*`, `MemoryReaders.h`, `RISCV/*` decoder/printer/CFG)
 - `tools/`: CLI entry (`riscy.cpp`)
 - `tests/`: Catch2 unit tests and `tests/e2e` (pytest + sample C programs)
 - `third_party/`: `ELFIO`, `Catch2` (git submodules)
@@ -46,6 +52,10 @@ High‑level pipeline (targeted for future translation):
 - Emit AArch64 assembly.
 
 This is a PoC; syscalls, PIC, and dynamic linking are out of scope.
+
+Notes:
+- Decoder supports RV64I base ISA, including 32-bit ops (ADDIW/SLLIW/SRLIW/SRAIW, ADDW/SUBW/SLLW/SRLW/SRAW).
+- E2E builds samples with base ISA flags (`-march=rv64i -mabi=lp64 -mno-relax`) and `-O0` to preserve control flow.
 
 ## Contributing
 Follow LLVM coding standards; see `AGENTS.md` for project structure, commands, and testing guidelines.

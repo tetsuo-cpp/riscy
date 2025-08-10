@@ -210,6 +210,50 @@ bool Decoder::decodeNext(const MemoryReader &mem, uint64_t pc,
       return false;
     }
   }
+  case 0x1B: { // OP-IMM-32 (W)
+    const auto f3 = funct3(insn);
+    switch (f3) {
+    case 0x0: // ADDIW
+      outInst.opcode = Opcode::ADDIW;
+      outInst.operands = {Reg{rd(insn)}, Reg{rs1(insn)},
+                          Imm{sext(static_cast<std::int32_t>(insn) >> 20, 12)}};
+      return true;
+    case 0x1: { // SLLIW
+      const auto f7 = funct7(insn);
+      if (f7 == 0x00) {
+        outInst.opcode = Opcode::SLLIW;
+        outInst.operands = {
+            Reg{rd(insn)}, Reg{rs1(insn)},
+            Imm{static_cast<std::int64_t>(getBits(insn, 24, 20))}};
+        return true;
+      }
+      outErr = DecodeError::InvalidOpcode;
+      return false;
+    }
+    case 0x5: { // SRLIW/SRAIW
+      const auto f7 = funct7(insn);
+      if (f7 == 0x00) {
+        outInst.opcode = Opcode::SRLIW;
+        outInst.operands = {
+            Reg{rd(insn)}, Reg{rs1(insn)},
+            Imm{static_cast<std::int64_t>(getBits(insn, 24, 20))}};
+        return true;
+      }
+      if (f7 == 0x20) {
+        outInst.opcode = Opcode::SRAIW;
+        outInst.operands = {
+            Reg{rd(insn)}, Reg{rs1(insn)},
+            Imm{static_cast<std::int64_t>(getBits(insn, 24, 20))}};
+        return true;
+      }
+      outErr = DecodeError::InvalidOpcode;
+      return false;
+    }
+    default:
+      outErr = DecodeError::InvalidOpcode;
+      return false;
+    }
+  }
   case 0x33: { // OP
     const auto f3 = funct3(insn);
     const auto f7 = funct7(insn);
@@ -237,6 +281,26 @@ bool Decoder::decodeNext(const MemoryReader &mem, uint64_t pc,
       break;
     case 0x7:
       outInst.opcode = Opcode::AND;
+      break;
+    default:
+      outErr = DecodeError::InvalidOpcode;
+      return false;
+    }
+    outInst.operands = {Reg{rd(insn)}, Reg{rs1(insn)}, Reg{rs2(insn)}};
+    return true;
+  }
+  case 0x3B: { // OP-32 (W)
+    const auto f3 = funct3(insn);
+    const auto f7 = funct7(insn);
+    switch (f3) {
+    case 0x0:
+      outInst.opcode = (f7 == 0x20 ? Opcode::SUBW : Opcode::ADDW);
+      break;
+    case 0x1:
+      outInst.opcode = Opcode::SLLW;
+      break;
+    case 0x5:
+      outInst.opcode = (f7 == 0x20 ? Opcode::SRAW : Opcode::SRLW);
       break;
     default:
       outErr = DecodeError::InvalidOpcode;
