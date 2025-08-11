@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(riscy VERSION 0.1.0 LANGUAGES CXX)
+project(riscy VERSION 0.1.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -16,11 +16,23 @@ add_library(riscy_lib
   src/RISCV/Decoder.cpp
   src/RISCV/Lifter.cpp
   src/RISCV/Printer.cpp
-)
+  src/AArch64/ISel.cpp
+  src/AArch64/Emitter.cpp
+  src/AArch64/Liveness.cpp
+  src/AArch64/RegAlloc.cpp
+  )
 
 target_include_directories(riscy_lib PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/src
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/ELFIO
+)
+
+# Build the runtime as a separate static library that contains main()
+add_library(riscy_runtime STATIC
+  src/runtime/runtime.c
+)
+target_include_directories(riscy_runtime PUBLIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
 add_executable(riscy
@@ -36,6 +48,7 @@ if (RISCY_WARNINGS)
   else()
     target_compile_options(riscy PRIVATE -Wall -Wextra -Wpedantic)
     target_compile_options(riscy_lib PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_options(riscy_runtime PRIVATE -Wall -Wextra -Wpedantic)
   endif()
 endif()
 

@@ -7,13 +7,37 @@ import sys
 import tempfile
 from pathlib import Path
 import pytest
-import sys
 
-SAMPLES = [
-    "arith.c",
-    "branches.c",
-    "mem.c",
-]
+from tools.lower import lower_elf_to_arm, run_function
+
+# For each sample, list of (inputs tuple -> expected return)
+SAMPLES = {
+    "arith.c": [
+        ((1, 2), ((1 + 2) << 3) - 5),  # 19
+        ((7, 3), ((7 + 3) << 3) - 5),  # 75
+    ],
+    "branches.c": [
+        ((0,), 0),
+        ((1,), 0),
+        ((2,), -1),  # +0 -1
+        ((3,), 1),   # +0 -1 +2
+        ((10,), -5),  # (0-1)+(2-3)+...+(8-9) = -5
+    ],
+    "mem.c": [
+        ((0,), 0),
+        ((1,), 0),
+        ((2,), 3),
+        ((8,), 84),  # 3 * sum(0..7) = 84
+    ],
+    "fib.c": [
+        ((0,), 0),
+        ((1,), 1),
+        ((2,), 1),
+        ((5,), 5),
+        ((10,), 55),
+        ((20,), 6765),
+    ],
+}
 
 
 def have_toolchain() -> tuple[bool, str]:
@@ -54,9 +78,9 @@ def have_toolchain() -> tuple[bool, str]:
 
 def build_sample(clang: str, sample_c: Path, out_dir: Path) -> Path:
     out_dir.mkdir(parents=True, exist_ok=True)
-    obj = out_dir / (sample_c.stem + ".o")
     elf = out_dir / (sample_c.stem + ".elf")
-    cflags = [
+    cmd = [
+        clang,
         "--target=riscv64-unknown-elf",
         "-march=rv64i",
         "-mabi=lp64",
@@ -65,31 +89,20 @@ def build_sample(clang: str, sample_c: Path, out_dir: Path) -> Path:
         "-fno-stack-protector",
         "-fno-asynchronous-unwind-tables",
         "-O0",
-        "-c",
-    ]
-    ldflags = [
-        "--target=riscv64-unknown-elf",
-        "-march=rv64i",
-        "-mabi=lp64",
+        str(sample_c),
+        "-o",
+        str(elf),
         "-nostdlib",
-        "-Wl,-e,_start",
+        "-Wl,-e,test",
         "-Wl,-static",
         "-fuse-ld=lld",
     ]
-    subprocess.run([clang] + cflags + [str(sample_c), "-o", str(obj)], check=True)
-    subprocess.run([clang] + ldflags + [str(obj), "-o", str(elf)], check=True)
+    subprocess.run(cmd, check=True)
     return elf
 
 
-def run_riscy(riscy_bin: Path, elf: Path) -> subprocess.CompletedProcess:
-    args = [str(riscy_bin), "--ir", str(elf)]
-    return subprocess.run(
-        args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-    )
-
-
-@pytest.mark.parametrize("sample", SAMPLES)
-def test_decode_samples(sample: str, request):
+@pytest.mark.parametrize("sample", list(SAMPLES.keys()))
+def test_lower_and_run_samples(sample: str, request):
     ok, reason = have_toolchain()
     if not ok:
         print(f"SKIP: {reason}")
@@ -101,12 +114,6 @@ def test_decode_samples(sample: str, request):
             "RISCY_BUILD_DIR", str(Path(__file__).resolve().parents[2] / "build")
         )
     )
-    riscy_bin = build_dir / "riscy"
-    if not riscy_bin.exists():
-        msg = f"riscy binary not found at {riscy_bin}"
-        print(f"SKIP: {msg}")
-        pytest.skip(msg)
-
     clang = shutil.which("clang")
     assert clang, "clang must be available"
 
@@ -120,16 +127,13 @@ def test_decode_samples(sample: str, request):
         except subprocess.CalledProcessError as e:
             pytest.skip(f"Failed to build sample with clang: {e}")
 
-        proc = run_riscy(riscy_bin, elf)
-        # Always print decoded output (pytest -s in __main__ ensures visibility under CTest -V)
-        print(f"=== riscy decode: {sample} ===")
-        out_lines = [ln for ln in proc.stdout.splitlines() if ln.strip()]
-        for ln in out_lines:
-            print(ln)
-        assert proc.returncode == 0, f"riscy failed: {proc.stderr}"
-        assert "<decode error>" not in proc.stdout, proc.stdout
-        # Ensure at least a few lines decoded
-        assert len(out_lines) >= 1, "no decode output produced"
+        # Lower to ARM64 binary; place artifacts in the same temp dir
+        res = lower_elf_to_arm(elf, build_dir=build_dir, out_dir=out_dir)
+        # Exercise inputs/outputs for this sample
+        for inputs, expected in SAMPLES[sample]:
+            ret, _ = run_function(res.out_bin, inputs=list(inputs))
+            print(f"{sample} inputs={inputs} -> ret={ret}")
+            assert ret == expected
 
 
 if __name__ == "__main__":

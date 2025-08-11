@@ -42,18 +42,21 @@ Build produces `build/riscy`:
   `./build/riscy --ir path/to/input.elf`
   Prints decoded instructions alongside their SSA IR representation.
 
+- Translate to AArch64:
+  `./build/riscy --aarch64 output.s path/to/input.elf`
+  Generates AArch64 assembly code from RISC-V ELF binary.
+
 ## Layout
-- `src/`: Core library (`ELFImage.*`, `MemoryReaders.h`, `RISCV/*` decoder/printer/CFG/lifter, `IR/*`)
+- `src/`: Core library (`ELFImage.*`, `MemoryReaders.h`, `RISCV/*` decoder/printer/CFG/lifter, `IR/*`, `AArch64/*` backend)
 - `tools/`: CLI entry (`riscy.cpp`)
 - `tests/`: Catch2 unit tests and `tests/e2e` (pytest + sample C programs)
 - `third_party/`: `ELFIO`, `Catch2` (git submodules)
 
 ## Design
-High‑level pipeline (targeted for future translation):
+High‑level pipeline for RISC‑V to AArch64 translation:
 - Decode RISC‑V instructions from ELF.
 - Build CFG and lift to SSA IR.
-- Optimize, select AArch64 instructions, allocate registers.
-- Emit AArch64 assembly.
+- Select AArch64 instructions, allocate registers, and emit assembly.
 
 This is a PoC; syscalls, PIC, and dynamic linking are out of scope.
 

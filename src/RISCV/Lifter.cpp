@@ -126,6 +126,22 @@ ir::Block Lifter::lift(const BasicBlock &bbIn) const {
       writeReg(rd, sum);
       break;
     }
+    case Opcode::ADDIW: {
+      // RV64: 32-bit add with sign-extension to 64-bit
+      auto rd = getReg(inst.operands[0]);
+      auto rs1 = getReg(inst.operands[1]);
+      auto immv = static_cast<uint64_t>(getImm(inst.operands[2]));
+      auto v1 = readReg(rs1);
+      auto c = imm(ir::Type::i64(), immv);
+      auto sum64 = bin(ir::BinOpKind::Add, ir::Type::i64(), v1, c);
+      // trunc to i32 then sext back to i64
+      ir::ValueId t32 = nextId(out.insts);
+      out.insts.push_back(ir::Instr{t32, ir::Trunc{sum64, ir::Type::i32()}});
+      ir::ValueId t64 = nextId(out.insts);
+      out.insts.push_back(ir::Instr{t64, ir::SExt{t32, ir::Type::i64()}});
+      writeReg(rd, t64);
+      break;
+    }
     case Opcode::ADD: {
       auto rd = getReg(inst.operands[0]);
       auto rs1 = getReg(inst.operands[1]);
@@ -134,6 +150,21 @@ ir::Block Lifter::lift(const BasicBlock &bbIn) const {
       auto v2 = readReg(rs2);
       auto sum = bin(ir::BinOpKind::Add, ir::Type::i64(), v1, v2);
       writeReg(rd, sum);
+      break;
+    }
+    case Opcode::ADDW: {
+      // RV64: 32-bit add with sign-extension to 64-bit
+      auto rd = getReg(inst.operands[0]);
+      auto rs1 = getReg(inst.operands[1]);
+      auto rs2 = getReg(inst.operands[2]);
+      auto v1 = readReg(rs1);
+      auto v2 = readReg(rs2);
+      auto sum64 = bin(ir::BinOpKind::Add, ir::Type::i64(), v1, v2);
+      ir::ValueId t32 = nextId(out.insts);
+      out.insts.push_back(ir::Instr{t32, ir::Trunc{sum64, ir::Type::i32()}});
+      ir::ValueId t64 = nextId(out.insts);
+      out.insts.push_back(ir::Instr{t64, ir::SExt{t32, ir::Type::i64()}});
+      writeReg(rd, t64);
       break;
     }
     case Opcode::SUB: {
@@ -173,6 +204,96 @@ ir::Block Lifter::lift(const BasicBlock &bbIn) const {
       auto v1 = readReg(rs1);
       auto v2 = readReg(rs2);
       auto r = bin(ir::BinOpKind::Xor, ir::Type::i64(), v1, v2);
+      writeReg(rd, r);
+      break;
+    }
+    case Opcode::ANDI: {
+      auto rd = getReg(inst.operands[0]);
+      auto rs1 = getReg(inst.operands[1]);
+      auto immv = static_cast<uint64_t>(getImm(inst.operands[2]));
+      auto v1 = readReg(rs1);
+      auto c = imm(ir::Type::i64(), immv);
+      auto r = bin(ir::BinOpKind::And, ir::Type::i64(), v1, c);
+      writeReg(rd, r);
+      break;
+    }
+    case Opcode::ORI: {
+      auto rd = getReg(inst.operands[0]);
+      auto rs1 = getReg(inst.operands[1]);
+      auto immv = static_cast<uint64_t>(getImm(inst.operands[2]));
+      auto v1 = readReg(rs1);
+      auto c = imm(ir::Type::i64(), immv);
+      auto r = bin(ir::BinOpKind::Or, ir::Type::i64(), v1, c);
+      writeReg(rd, r);
+      break;
+    }
+    case Opcode::XORI: {
+      auto rd = getReg(inst.operands[0]);
+      auto rs1 = getReg(inst.operands[1]);
+      auto immv = static_cast<uint64_t>(getImm(inst.operands[2]));
+      auto v1 = readReg(rs1);
+      auto c = imm(ir::Type::i64(), immv);
+      auto r = bin(ir::BinOpKind::Xor, ir::Type::i64(), v1, c);
+      writeReg(rd, r);
+      break;
+    }
+    case Opcode::SLLI: {
+      auto rd = getReg(inst.operands[0]);
+      auto rs1 = getReg(inst.operands[1]);
+      auto sh = static_cast<uint64_t>(getImm(inst.operands[2]));
+      auto v1 = readReg(rs1);
+      auto c = imm(ir::Type::i64(), sh);
+      auto r = bin(ir::BinOpKind::Shl, ir::Type::i64(), v1, c);
+      writeReg(rd, r);
+      break;
+    }
+    case Opcode::SRLI: {
+      auto rd = getReg(inst.operands[0]);
+      auto rs1 = getReg(inst.operands[1]);
+      auto sh = static_cast<uint64_t>(getImm(inst.operands[2]));
+      auto v1 = readReg(rs1);
+      auto c = imm(ir::Type::i64(), sh);
+      auto r = bin(ir::BinOpKind::LShr, ir::Type::i64(), v1, c);
+      writeReg(rd, r);
+      break;
+    }
+    case Opcode::SRAI: {
+      auto rd = getReg(inst.operands[0]);
+      auto rs1 = getReg(inst.operands[1]);
+      auto sh = static_cast<uint64_t>(getImm(inst.operands[2]));
+      auto v1 = readReg(rs1);
+      auto c = imm(ir::Type::i64(), sh);
+      auto r = bin(ir::BinOpKind::AShr, ir::Type::i64(), v1, c);
+      writeReg(rd, r);
+      break;
+    }
+    case Opcode::SLL: {
+      auto rd = getReg(inst.operands[0]);
+      auto rs1 = getReg(inst.operands[1]);
+      auto rs2 = getReg(inst.operands[2]);
+      auto v1 = readReg(rs1);
+      auto v2 = readReg(rs2);
+      auto r = bin(ir::BinOpKind::Shl, ir::Type::i64(), v1, v2);
+      writeReg(rd, r);
+      break;
+    }
+    case Opcode::SRL: {
+      auto rd = getReg(inst.operands[0]);
+      auto rs1 = getReg(inst.operands[1]);
+      auto rs2 = getReg(inst.operands[2]);
+      auto v1 = readReg(rs1);
+      auto v2 = readReg(rs2);
+      auto r = bin(ir::BinOpKind::LShr, ir::Type::i64(), v1, v2);
+      writeReg(rd, r);
+      break;
+    }
+    case Opcode::SRA: {
+      auto rd = getReg(inst.operands[0]);
+      auto rs1 = getReg(inst.operands[1]);
+      auto rs2 = getReg(inst.operands[2]);
+      auto v1 = readReg(rs1);
+      auto v2 = readReg(rs2);
+      auto r = bin(ir::BinOpKind::AShr, ir::Type::i64(), v1, v2);
       writeReg(rd, r);
       break;
     }

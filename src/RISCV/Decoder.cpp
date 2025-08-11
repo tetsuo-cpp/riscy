@@ -52,8 +52,10 @@ bool Decoder::decodeNext(const MemoryReader &mem, uint64_t pc,
   }
   case 0x67: { // JALR
     outInst.opcode = Opcode::JALR;
-    std::int32_t imm = static_cast<std::int32_t>(insn) >> 20; // arithmetic
-    outInst.operands = {Reg{rd(insn)}, Mem{rs1(insn), sext(imm, 12)}};
+    std::uint32_t imm12 = (insn >> 20) & 0xFFFu; // extract 12-bit immediate
+    outInst.operands = {
+        Reg{rd(insn)},
+        Mem{rs1(insn), sext(static_cast<std::int64_t>(imm12), 12)}};
     return true;
   }
   case 0x63: { // BRANCH
@@ -118,8 +120,10 @@ bool Decoder::decodeNext(const MemoryReader &mem, uint64_t pc,
       outErr = DecodeError::InvalidOpcode;
       return false;
     }
-    std::int32_t imm = static_cast<std::int32_t>(insn) >> 20;
-    outInst.operands = {Reg{rd(insn)}, Mem{rs1(insn), sext(imm, 12)}};
+    std::uint32_t imm12 = (insn >> 20) & 0xFFFu;
+    outInst.operands = {
+        Reg{rd(insn)},
+        Mem{rs1(insn), sext(static_cast<std::int64_t>(imm12), 12)}};
     return true;
   }
   case 0x23: { // STORE
@@ -151,33 +155,51 @@ bool Decoder::decodeNext(const MemoryReader &mem, uint64_t pc,
     switch (f3) {
     case 0x0:
       outInst.opcode = Opcode::ADDI;
-      outInst.operands = {Reg{rd(insn)}, Reg{rs1(insn)},
-                          Imm{sext(static_cast<std::int32_t>(insn) >> 20, 12)}};
+      {
+        std::uint32_t imm12 = (insn >> 20) & 0xFFFu;
+        outInst.operands = {Reg{rd(insn)}, Reg{rs1(insn)},
+                            Imm{sext(static_cast<std::int64_t>(imm12), 12)}};
+      }
       return true;
     case 0x2:
       outInst.opcode = Opcode::SLTI;
-      outInst.operands = {Reg{rd(insn)}, Reg{rs1(insn)},
-                          Imm{sext(static_cast<std::int32_t>(insn) >> 20, 12)}};
+      {
+        std::uint32_t imm12 = (insn >> 20) & 0xFFFu;
+        outInst.operands = {Reg{rd(insn)}, Reg{rs1(insn)},
+                            Imm{sext(static_cast<std::int64_t>(imm12), 12)}};
+      }
       return true;
     case 0x3:
       outInst.opcode = Opcode::SLTIU;
-      outInst.operands = {Reg{rd(insn)}, Reg{rs1(insn)},
-                          Imm{sext(static_cast<std::int32_t>(insn) >> 20, 12)}};
+      {
+        std::uint32_t imm12 = (insn >> 20) & 0xFFFu;
+        outInst.operands = {Reg{rd(insn)}, Reg{rs1(insn)},
+                            Imm{sext(static_cast<std::int64_t>(imm12), 12)}};
+      }
       return true;
     case 0x4:
       outInst.opcode = Opcode::XORI;
-      outInst.operands = {Reg{rd(insn)}, Reg{rs1(insn)},
-                          Imm{sext(static_cast<std::int32_t>(insn) >> 20, 12)}};
+      {
+        std::uint32_t imm12 = (insn >> 20) & 0xFFFu;
+        outInst.operands = {Reg{rd(insn)}, Reg{rs1(insn)},
+                            Imm{sext(static_cast<std::int64_t>(imm12), 12)}};
+      }
       return true;
     case 0x6:
       outInst.opcode = Opcode::ORI;
-      outInst.operands = {Reg{rd(insn)}, Reg{rs1(insn)},
-                          Imm{sext(static_cast<std::int32_t>(insn) >> 20, 12)}};
+      {
+        std::uint32_t imm12 = (insn >> 20) & 0xFFFu;
+        outInst.operands = {Reg{rd(insn)}, Reg{rs1(insn)},
+                            Imm{sext(static_cast<std::int64_t>(imm12), 12)}};
+      }
       return true;
     case 0x7:
       outInst.opcode = Opcode::ANDI;
-      outInst.operands = {Reg{rd(insn)}, Reg{rs1(insn)},
-                          Imm{sext(static_cast<std::int32_t>(insn) >> 20, 12)}};
+      {
+        std::uint32_t imm12 = (insn >> 20) & 0xFFFu;
+        outInst.operands = {Reg{rd(insn)}, Reg{rs1(insn)},
+                            Imm{sext(static_cast<std::int64_t>(imm12), 12)}};
+      }
       return true;
     case 0x1: { // SLLI
       outInst.opcode = Opcode::SLLI;
@@ -215,8 +237,11 @@ bool Decoder::decodeNext(const MemoryReader &mem, uint64_t pc,
     switch (f3) {
     case 0x0: // ADDIW
       outInst.opcode = Opcode::ADDIW;
-      outInst.operands = {Reg{rd(insn)}, Reg{rs1(insn)},
-                          Imm{sext(static_cast<std::int32_t>(insn) >> 20, 12)}};
+      {
+        std::uint32_t imm12 = (insn >> 20) & 0xFFFu;
+        outInst.operands = {Reg{rd(insn)}, Reg{rs1(insn)},
+                            Imm{sext(static_cast<std::int64_t>(imm12), 12)}};
+      }
       return true;
     case 0x1: { // SLLIW
       const auto f7 = funct7(insn);

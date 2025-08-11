@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## Project Structure & Modules
-- `src/`: C++17 library code (`riscy_lib`). Key areas: `RISCV/` (decoder, printer, CFG), `ELFImage.*`, `MemoryReaders.h`.
+- `src/`: C++17 library code (`riscy_lib`). Key areas: `RISCV/` (decoder, printer, CFG), `IR/`, `AArch64/` (ISel, RegAlloc, Emitter), `ELFImage.*`, `MemoryReaders.h`.
 - `tools/`: CLI entrypoint (`riscy.cpp`) building the `riscy` binary.
 - `tests/`: Unit tests (`DecoderTests.cpp`, Catch2) and e2e tests under `tests/e2e/` (pytest + sample C files).
 - `third_party/`: Git submodules (`ELFIO`, `Catch2`). Run `git submodule update --init --recursive` after cloning.
@@ -15,6 +15,7 @@
   - Tip: on macOS/Homebrew LLVM, `export PATH="/opt/homebrew/opt/llvm/bin:$PATH"` and activate the repo venv `source .ve/bin/activate`.
 - Run locally: `./build/riscy path/to/input.elf`
   - Dump CFG instead: `./build/riscy --cfg path/to/input.elf`
+  - Translate to AArch64: `./build/riscy --aarch64 output.s path/to/input.elf`
 
 ## Coding Style & Naming
 - Standard: LLVM style; `.clang-format` enforces it. Use 2-space indents, no tabs.
